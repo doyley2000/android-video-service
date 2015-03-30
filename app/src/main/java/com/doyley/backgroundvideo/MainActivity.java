@@ -19,9 +19,7 @@ import com.doyley.backgroundvideo.player.VideoPlayer;
 import com.doyley.backgroundvideo.service.VideoService;
 import com.doyley.backgroundvideo.service.VideoServiceListener;
 
-import java.text.DateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 
@@ -34,6 +32,10 @@ public class MainActivity extends ActionBarActivity {
 	private Button mResumeViewingButton;
 	private TextView mStatus;
 	private VideoService mVideoService;
+
+	private boolean mLoadRequested;
+	private boolean mVideoPreparing;
+
 
 	private ServiceConnection mServiceConnection = new ServiceConnection() {
 		@Override
@@ -84,6 +86,7 @@ public class MainActivity extends ActionBarActivity {
 		@Override
 		protected void onPrepared() {
 			addToLog("Video Prepared");
+			mVideoPreparing = false;
 			updateButtons();
 		}
 
@@ -110,9 +113,6 @@ public class MainActivity extends ActionBarActivity {
 		}
 	};
 
-	private boolean mLoadRequested;
-	private boolean mVideoPreparing;
-
 	private void resumeActivity() {
 		Intent intent = VideoService.getIntent(this, VideoService.ACTION_DISPLAY_VIDEO);
 		startService(intent);
@@ -135,21 +135,21 @@ public class MainActivity extends ActionBarActivity {
 		mResumeViewingButton.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View v) {
-				resumeActivity();
+				startVideo(true, false);
 			}
 		});
 		mStartVideoButton = (Button)findViewById(R.id.start_video);
 		mStartVideoButton.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View v) {
-				startVideo(false);
+				startVideo(false, true);
 			}
 		});
 		mStartVideoActivityButton = (Button)findViewById(R.id.start_video_activity);
 		mStartVideoActivityButton.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View v) {
-				startVideo(true);
+				startVideo(true, true);
 			}
 		});
 		mStopVideoButton = (Button)findViewById(R.id.stop_video);
@@ -177,6 +177,7 @@ public class MainActivity extends ActionBarActivity {
 	protected void onDestroy() {
 		super.onDestroy();
 		if (mVideoService != null) {
+			mVideoService.unregisterListener(mVideoServiceListener);
 			unbindService(mServiceConnection);
 			mVideoService = null;
 		}
@@ -211,11 +212,19 @@ public class MainActivity extends ActionBarActivity {
 				mStopVideoButton.setEnabled(true);
 				break;
 			case STATE_READY:
-				mPrepareVideoButton.setEnabled(false);
-				mResumeViewingButton.setEnabled(true);
-				mStartVideoButton.setEnabled(false);
-				mStartVideoActivityButton.setEnabled(false);
-				mStopVideoButton.setEnabled(true);
+				if (mVideoService.getCurrentPosition() == 0 && !mVideoService.isPlaying()) {
+					mPrepareVideoButton.setEnabled(false);
+					mResumeViewingButton.setEnabled(true);
+					mStartVideoButton.setEnabled(true);
+					mStartVideoActivityButton.setEnabled(true);
+					mStopVideoButton.setEnabled(true);
+				} else {
+					mPrepareVideoButton.setEnabled(false);
+					mResumeViewingButton.setEnabled(true);
+					mStartVideoButton.setEnabled(false);
+					mStartVideoActivityButton.setEnabled(false);
+					mStopVideoButton.setEnabled(true);
+				}
 				break;
 			case STATE_ENDED:
 				mPrepareVideoButton.setEnabled(true);
@@ -228,8 +237,7 @@ public class MainActivity extends ActionBarActivity {
 	}
 
 	private void addToLog(String s) {
-		String currentDateTimeString = DateFormat.getDateTimeInstance().format(new Date());
-		mStatus.append("\n" + currentDateTimeString + ": " + s);
+		Log.d(this.getClass().getSimpleName(), s + " (VideoService)");
 	}
 
 
@@ -237,17 +245,19 @@ public class MainActivity extends ActionBarActivity {
 		Intent intent = VideoService.getIntent(this, VideoService.ACTION_DISCARD_VIDEO);
 		startService(intent);
 		addToLog("Video Stopped");
-		mVideoPreparing = false;
 	}
 
-	private void startVideo(boolean withActivity) {
+	private void startVideo(boolean withActivity, boolean startPlayback) {
 		addToLog("Video Starting : withActivity = " + withActivity);
 		if (!mVideoPreparing) {
-			addToLog(" - need to prepare first");
-			prepareVideo();
+			if (mVideoService != null && !mVideoService.isPlayerPrepared()) {
+				addToLog(" - need to prepare first");
+				prepareVideo();
+			}
 		}
 		Intent videoServiceIntent = VideoService.getIntent(this, VideoService.ACTION_START_VIDEO);
 		videoServiceIntent.putExtra(VideoService.EXTRA_WITH_ACTIVITY, withActivity);
+		videoServiceIntent.putExtra(VideoService.EXTRA_START_PLAYBACK, startPlayback);
 		startService(videoServiceIntent);
 	}
 
@@ -273,8 +283,7 @@ public class MainActivity extends ActionBarActivity {
 				"http://upload.wikimedia.org/wikipedia/commons/c/c5/Big_buck_bunny_poster_big.jpg",
 				"http://en.wikipedia.org/wiki/Big_Buck_Bunny", true, false, true);
 
-		mVideoService.loadVideo(metadata, video, false);
-		mVideoPreparing = true;
+		mVideoService.loadVideo(metadata, video);
 
 	}
 }

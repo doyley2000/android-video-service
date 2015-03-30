@@ -48,6 +48,7 @@ public class VideoService extends Service implements MediaController.MediaPlayer
 	private static final int MSG_CHECK_PROGRESS = 1;
 	private static final long MESSAGE_POLLING_INTERVAL_IN_MS = 1000;
 	public static final String EXTRA_WITH_ACTIVITY = "EXTRA_WITH_ACTIVITY";
+	public static final String EXTRA_START_PLAYBACK = "EXTRA_START_PLAYBACK";
 
 	// Local binder pattern...
 	public class LocalBinder extends Binder {
@@ -123,7 +124,6 @@ public class VideoService extends Service implements MediaController.MediaPlayer
 	@Override
 	public void onMediaDrawnToSurface() {
 		Log.d(this.getClass().getSimpleName(), "onMediaDrawnToSurface");
-		mStartRequested = false;
 	}
 
 	public void onVideoSizeChanged() {
@@ -186,9 +186,10 @@ public class VideoService extends Service implements MediaController.MediaPlayer
 
 		if (action != null) {
 			if (action.equals(ACTION_DISPLAY_VIDEO)) {
-				resumeActivity();
+//				resumeActivity();
 			} else if (action.equals(ACTION_START_VIDEO)) {
 				mActivityRequested = intent.getBooleanExtra(EXTRA_WITH_ACTIVITY, false);
+				mStartRequested = intent.getBooleanExtra(EXTRA_START_PLAYBACK, false);
 				startVideo();
 			} else if (action.equals(ACTION_DISCARD_VIDEO)) {
 				stop();
@@ -214,18 +215,13 @@ public class VideoService extends Service implements MediaController.MediaPlayer
 	 * Loads the video track to the media player.
 	 *
 	 * @param metadata      Video metadata
-	 * @param startPlayback If set to true the player activity will be triggered. If false
-	 *                      the video will be loaded but not played.
 	 */
-	public void loadVideo(final VideoPlayerMetadata metadata, Video video, final boolean startPlayback) {
-		Log.d(this.getClass().getSimpleName(), "loadVideo - metadata = " + metadata + "; video = " + video + "; startPlayback " + startPlayback);
+	public void loadVideo(final VideoPlayerMetadata metadata, Video video) {
+		Log.d(this.getClass().getSimpleName(), "loadVideo - metadata = " + metadata + "; video = " + video);
 
 		// This is important or else the service might get shut down when we unbind
 		startService(new Intent(this, VideoService.class));
 
-		if (!mStartRequested) {
-			mStartRequested = startPlayback;
-		}
 		mMetadata = metadata;
 
 		mVideo = video;
@@ -250,32 +246,17 @@ public class VideoService extends Service implements MediaController.MediaPlayer
 		mVideoPlayer.setVideoSize();
 	}
 
-	private void resumeActivity() {
-		Log.d(this.getClass().getSimpleName(), "resumeActivity");
-		if (isPlayerPrepared()) {
-			startVideoActivity(mMetadata.getTitle());
-			if (!isPlaying()) {
-				// if video is paused on reattaching to activity - we need to seek to it's current
-				// position - otherwise we will have a blank screen
-				Runnable runnable = new Runnable() {
-					public void run() {
-						seekTo(getCurrentPosition());
-					}
-				};
-				mBackgroundHandler.post(runnable);
-			}
-		}
-	}
-
 	private void startVideo() {
+
 		Log.d(this.getClass().getSimpleName(), "startVideo : mActivityRequested = " + mActivityRequested);
-		start();
+		if (mStartRequested) {
+			start();
+		}
 		// only start if prepared - if not prepared the prepared method will call this method when both
 		// prepared and a start has been requested.
 		if (mActivityRequested && isPlayerPrepared()) {
 			Log.d(this.getClass().getSimpleName(), " - starting activity");
 			startVideoActivity(mMetadata.getTitle());
-			mBackgroundHandler.sendEmptyMessage(MSG_CHECK_PROGRESS);
 			mActivityRequested = false;
 		}
 	}
@@ -288,6 +269,7 @@ public class VideoService extends Service implements MediaController.MediaPlayer
 		if (isPlayerPrepared()) {
 			Log.d(this.getClass().getSimpleName(), "- actually starting");
 			mVideoPlayer.start();
+			mBackgroundHandler.sendEmptyMessage(MSG_CHECK_PROGRESS);
 			mStartRequested = false;
 			mMetadata.setPaused(false);
 

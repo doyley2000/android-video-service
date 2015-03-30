@@ -75,7 +75,7 @@ public class VideoExoPlayerImpl implements VideoPlayer, ExoPlayer.Listener, Medi
 			mExoPlayer.release();
 			mExoPlayer = null;
 		}
-
+		mPlayerPrepared = false;
 		// ...initialize the MediaPlayer here...
 		mExoPlayer = ExoPlayer.Factory.newInstance(RENDERER_COUNT, 1000, 5000);
 		mExoPlayer.addListener(this);
