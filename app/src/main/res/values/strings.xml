@@ -1,0 +1,11 @@
+<resources>
+	<string name="app_name">Background Video</string>
+	<string name="title_activity_main">MainActivity</string>
+	<string name="title_activity_video">Video Player</string>
+
+	<string name="prepare_video">Prepare Video</string>
+	<string name="start_video">Start Video (without Activity)</string>
+	<string name="start_video_activity">Start Video (with Activity)</string>
+	<string name="stop_video">Stop Video</string>
+	<string name="resume_viewing">View Video</string>
+</resources>

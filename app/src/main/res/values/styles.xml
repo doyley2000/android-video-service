@@ -1,0 +1,21 @@
+<resources>
+
+	<!-- Base application theme. -->
+	<style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+		<!-- Customize your theme here. -->
+	</style>
+
+	<style name="indeterminateProgressBar">
+		<item name="android:layout_width">wrap_content</item>
+		<item name="android:layout_height">wrap_content</item>
+		<item name="android:layout_gravity">center</item>
+		<item name="android:indeterminate">true</item>
+		<item name="android:visibility">invisible</item>
+		<item name="android:indeterminateOnly">true</item>
+		<item name="android:indeterminateDuration">@integer/loading_view_throbber_animation_duration</item>
+		<item name="android:indeterminateDrawable">@drawable/icn_loading_indicator</item>
+	</style>
+
+
+	<integer name="loading_view_throbber_animation_duration">2000</integer>
+</resources>

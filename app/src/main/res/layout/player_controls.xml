@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+
+<LinearLayout
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:tools="http://schemas.android.com/tools"
+	android:id="@+id/player_controller"
+	android:layout_width="match_parent"
+	android:layout_height="wrap_content"
+	android:layout_alignParentBottom="true"
+	android:layout_marginTop="@dimen/player_controls_margin"
+	android:layout_marginBottom="@dimen/player_controls_margin"
+	android:orientation="vertical"
+	tools:showIn="@layout/player">
+
+	<LinearLayout
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:gravity="center_vertical"
+		android:orientation="horizontal"
+		android:paddingLeft="16dp"
+		android:paddingRight="16dp"
+		android:paddingBottom="@dimen/player_seekbar_padding">
+
+		<TextView
+			android:id="@+id/time_position"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:textColor="@color/white_70"
+			android:layout_marginRight="2dp"
+			android:gravity="left"/>
+
+		<SeekBar
+			android:id="@+id/seekbar"
+			android:layout_width="0dip"
+			android:layout_height="wrap_content"
+			android:gravity="center_vertical"
+			android:progress="0"
+			android:layout_weight="1"
+			android:paddingLeft="9dip"
+			android:paddingRight="9dip"
+			android:maxHeight="2dip"
+			android:minHeight="2dip"/>
+
+		<TextView
+			android:id="@+id/time_length"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:textColor="@color/white_70"
+			android:layout_marginLeft="2dip"
+			android:gravity="left"/>
+	</LinearLayout>
+
+	<LinearLayout
+		android:id="@+id/controls"
+		android:layout_width="match_parent"
+		android:layout_height="92dp"
+		android:gravity="center_vertical"
+		android:baselineAligned="false"
+		android:orientation="horizontal"
+		android:visibility="invisible">
+
+		<ImageButton
+			android:id="@+id/btn_prev"
+			android:layout_height="@dimen/player_control_height"
+			android:layout_width="0dp"
+			android:layout_weight="1"
+			android:background="@null"/>
+
+		<com.doyley.backgroundvideo.view.CheckableImageButton
+			android:id="@+id/btn_play"
+			android:layout_height="@dimen/player_control_height"
+			android:scaleType="fitCenter"
+			android:layout_width="60dp"
+			android:background="@null"/>
+
+		<ImageButton
+			android:id="@+id/btn_next"
+			android:layout_height="@dimen/player_control_height"
+			android:layout_width="0dp"
+			android:layout_weight="1"
+			android:background="@null"/>
+
+	</LinearLayout>
+
+</LinearLayout>
