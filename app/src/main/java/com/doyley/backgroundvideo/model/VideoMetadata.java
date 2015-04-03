@@ -3,18 +3,21 @@ package com.doyley.backgroundvideo.model;
 import android.os.Parcel;
 import android.os.Parcelable;
 
-public class VideoPlayerMetadata implements Parcelable {
+import java.util.List;
 
-	public static final Creator<VideoPlayerMetadata> CREATOR = new Creator<VideoPlayerMetadata>() {
-		public VideoPlayerMetadata createFromParcel(Parcel in) {
-			return new VideoPlayerMetadata(in);
+public class VideoMetadata implements Parcelable {
+
+	public static final Creator<VideoMetadata> CREATOR = new Creator<VideoMetadata>() {
+		public VideoMetadata createFromParcel(Parcel in) {
+			return new VideoMetadata(in);
 		}
 
-		public VideoPlayerMetadata[] newArray(int size) {
-			return new VideoPlayerMetadata[size];
+		public VideoMetadata[] newArray(int size) {
+			return new VideoMetadata[size];
 		}
 	};
 
+	private String mVideoUri;
 	private String mTitle;
 	private String mArtist;
 	private long mDuration;
@@ -24,9 +27,10 @@ public class VideoPlayerMetadata implements Parcelable {
 	private boolean mPrevEnabled;
 	private boolean mIsPaused;
 
-	public VideoPlayerMetadata(final String title, final String artist, final long duration,
-	                           final String imageUrl, final String clickUrl, boolean nextEnabled,
-	                           boolean prevEnabled, boolean isPaused) {
+	public VideoMetadata(final String videoUri, final String title, final String artist, final long duration,
+	                     final String imageUrl, final String clickUrl, boolean nextEnabled,
+	                     boolean prevEnabled, boolean isPaused) {
+		mVideoUri = videoUri;
 		mTitle = title;
 		mArtist = artist;
 		mDuration = duration;
@@ -37,7 +41,8 @@ public class VideoPlayerMetadata implements Parcelable {
 		mIsPaused = isPaused;
 	}
 
-	private VideoPlayerMetadata(Parcel in) {
+	private VideoMetadata(Parcel in) {
+		mVideoUri = in.readString();
 		mTitle = in.readString();
 		mArtist = in.readString();
 		mDuration = in.readLong();
@@ -46,6 +51,10 @@ public class VideoPlayerMetadata implements Parcelable {
 		mNextEnabled = in.readByte() != 0;
 		mPrevEnabled = in.readByte() != 0;
 		mIsPaused = in.readByte() != 0;
+	}
+
+	public String getVideoUri() {
+		return mVideoUri;
 	}
 
 	public String getTitle() {
@@ -120,6 +129,7 @@ public class VideoPlayerMetadata implements Parcelable {
 
 	@Override
 	public void writeToParcel(Parcel dest, int flags) {
+		dest.writeString(mVideoUri);
 		dest.writeString(mTitle);
 		dest.writeString(mArtist);
 		dest.writeLong(mDuration);
@@ -132,7 +142,8 @@ public class VideoPlayerMetadata implements Parcelable {
 
 	@Override
 	public String toString() {
-		return  VideoPlayerMetadata.class.getSimpleName() + "{" +
+		return  VideoMetadata.class.getSimpleName() + "{" +
+				", mVideoUri=" + mVideoUri +
 				", mTitle=" + mTitle +
 				", mArtist=" + mArtist +
 				", mDuration=" + mDuration +

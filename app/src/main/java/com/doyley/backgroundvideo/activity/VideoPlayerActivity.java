@@ -14,7 +14,6 @@ import android.widget.FrameLayout;
 import com.doyley.backgroundvideo.R;
 import com.doyley.backgroundvideo.player.VideoPlayer;
 import com.doyley.backgroundvideo.service.VideoService;
-import com.doyley.backgroundvideo.service.VideoServiceListener;
 import com.doyley.backgroundvideo.view.MediaController;
 import com.google.android.exoplayer.VideoSurfaceView;
 
@@ -22,10 +21,9 @@ public class VideoPlayerActivity extends Activity {
 
 	public static final int CONTROLLER_TIMEOUT_MS = 2500;
 
-	public static final String ACTIVITY_PREFIX = "com.spotify.mobile.android.spotlets.video.BackgroundableVideoPlayerActivity";
+	public static final String ACTIVITY_PREFIX = "com.doyley.backgroundvideo.activity.VideoPlayerActivity";
 	public static final String EXTRA_TITLE = ACTIVITY_PREFIX + "EXTRA_TITLE";
 
-	private FrameLayout mVideoContainer;
 	private VideoSurfaceView mVideoSurfaceView;
 	private VideoService mVideoService;
 	private MediaController mMediaController;
@@ -33,27 +31,15 @@ public class VideoPlayerActivity extends Activity {
 	private View mThrobberView;
 	private View mShutterView;
 
+	private VideoService.VideoServiceListener mVideoServiceListener = new VideoService.VideoServiceListener() {
 
-	private VideoServiceListener mVideoServiceListener = new VideoServiceListener(0) {
 		@Override
-		protected void onPrepared() {
-			mVideoService.setForegroundSurface(mVideoSurfaceView, getWindowManager().getDefaultDisplay());
-
+		public void onPrepared() {
 			mMediaController.show(CONTROLLER_TIMEOUT_MS);
 		}
 
 		@Override
-		protected void onTimeEvent(int eventMillis) {
-
-		}
-
-		@Override
-		protected void onIntervalReached(int interval) {
-
-		}
-
-		@Override
-		protected void onMediaPlayerInfo(VideoPlayer.VideoPlaybackState playbackState) {
+		public void onMediaPlayerInfo(VideoPlayer.VideoPlaybackState playbackState) {
 
 			switch (playbackState) {
 				case STATE_BUFFERING:
@@ -76,7 +62,7 @@ public class VideoPlayerActivity extends Activity {
 		}
 
 		@Override
-		protected void onPlaying(boolean isPlaying) {
+		public void onPlaying(boolean isPlaying) {
 			if (isPlaying) {
 				getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 			} else {
@@ -85,17 +71,17 @@ public class VideoPlayerActivity extends Activity {
 		}
 
 		@Override
-		protected void onCompletion() {
+		public void onCompletion() {
 			shutDown();
 		}
 
 		@Override
-		protected void onError() {
+		public void onError() {
 			shutDown();
 		}
 
 		@Override
-		protected void notifyVideoSizeChange() {
+		public void notifyVideoSizeChange() {
 			if (mShutterView != null) {
 				runOnUiThread(new Runnable() {
 					@Override
@@ -106,12 +92,6 @@ public class VideoPlayerActivity extends Activity {
 			}
 		}
 	};
-
-	private void shutDown() {
-		// need to stop progress polling
-		mMediaController.shutdown();
-		finish();
-	}
 
 	private ServiceConnection mVideoServiceConnection = new ServiceConnection() {
 
@@ -137,63 +117,48 @@ public class VideoPlayerActivity extends Activity {
 		}
 	};
 
-	@Override
+	private SurfaceHolder.Callback mSurfaceCallback = new SurfaceHolder.Callback() {
+
+		@Override
+		public void surfaceCreated(SurfaceHolder holder) {
+			mSurfaceCreated = true;
+			trySetVideoSurfaceView();
+		}
+
+		@Override
+		public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+		}
+
+		@Override
+		public void surfaceDestroyed(SurfaceHolder holder) {
+			mSurfaceCreated = false;
+			if (mVideoService != null) {
+				mVideoService.setBackgrounded(true, null, getWindowManager().getDefaultDisplay());
+			}
+		}
+	};
+
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_video_player);
 		mVideoSurfaceView = (VideoSurfaceView) findViewById(R.id.video_surface);
 		mMediaController = new MediaController(this);
-		mVideoContainer = (FrameLayout) findViewById(R.id.video_container);
-		mMediaController.setAnchorView(mVideoContainer);
+		FrameLayout videoContainer = (FrameLayout) findViewById(R.id.video_container);
+		mMediaController.setAnchorView(videoContainer);
 		mShutterView = findViewById(R.id.shutter);
 
 		mThrobberView = findViewById(R.id.throbber);
 		mThrobberView.setVisibility(View.GONE);
 
-		mVideoSurfaceView.getHolder().addCallback(new SurfaceHolder.Callback() {
+		mVideoSurfaceView.getHolder().addCallback(mSurfaceCallback);
 
-			@Override
-			public void surfaceCreated(SurfaceHolder holder) {
-				mSurfaceCreated = true;
-				trySetVideoSurfaceView();
-			}
-
-			@Override
-			public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-			}
-
-			@Override
-			public void surfaceDestroyed(SurfaceHolder holder) {
-				mSurfaceCreated = false;
-				if (mVideoService != null) {
-					mVideoService.setBackgrounded(true, null, getWindowManager().getDefaultDisplay());
-				}
-			}
-		});
-
-		mVideoContainer.setOnClickListener(new View.OnClickListener() {
+		videoContainer.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View v) {
 				mMediaController.show();
 			}
 		});
 		VideoService.bindToService(VideoPlayerActivity.this, mVideoServiceConnection);
-	}
-
-	public void trySetVideoSurfaceView() {
-		if (mVideoService != null && mSurfaceCreated) {
-			mVideoService.setBackgrounded(false, mVideoSurfaceView, getWindowManager().getDefaultDisplay());
-		}
-	}
-
-	@Override
-	protected void onResume() {
-		super.onResume();
-	}
-
-	@Override
-	protected void onPause() {
-		super.onPause();
 	}
 
 	@Override
@@ -205,8 +170,31 @@ public class VideoPlayerActivity extends Activity {
 			} else {
 				showSystemUI();
 			}
-			mVideoService.setVideoSize();
+			mVideoService.resetSurfaceAspectRatio();
 		}
+	}
+
+	@Override
+	protected void onDestroy() {
+
+		if (mVideoService != null) {
+			mVideoService.unregisterListener(mVideoServiceListener);
+			unbindService(mVideoServiceConnection);
+		}
+		super.onDestroy();
+	}
+
+	/** STOP Activity lifecycle methods */
+
+	private void trySetVideoSurfaceView() {
+		if (mVideoService != null && mSurfaceCreated) {
+			mVideoService.setBackgrounded(false, mVideoSurfaceView, getWindowManager().getDefaultDisplay());
+		}
+	}
+
+	private void shutDown() {
+		mMediaController.shutdown();
+		finish();
 	}
 
 	private void hideSystemUI() {
@@ -226,16 +214,6 @@ public class VideoPlayerActivity extends Activity {
 	private void showSystemUI() {
 		int uiFlags = View.SYSTEM_UI_FLAG_LAYOUT_STABLE;
 		getWindow().getDecorView().setSystemUiVisibility(uiFlags);
-	}
-
-	@Override
-	protected void onDestroy() {
-
-		if (mVideoService != null) {
-			mVideoService.unregisterListener(mVideoServiceListener);
-			unbindService(mVideoServiceConnection);
-		}
-		super.onDestroy();
 	}
 
 

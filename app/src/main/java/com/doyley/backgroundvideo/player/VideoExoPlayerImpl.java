@@ -9,9 +9,6 @@ import android.view.Display;
 import android.view.Surface;
 import android.view.SurfaceView;
 
-import com.doyley.backgroundvideo.model.Video;
-import com.doyley.backgroundvideo.model.VideoFlatFile;
-import com.doyley.backgroundvideo.service.VideoService;
 import com.google.android.exoplayer.ExoPlaybackException;
 import com.google.android.exoplayer.ExoPlayer;
 import com.google.android.exoplayer.MediaCodecAudioTrackRenderer;
@@ -48,7 +45,6 @@ public class VideoExoPlayerImpl implements VideoPlayer, ExoPlayer.Listener, Medi
 	private MediaCodecVideoTrackRenderer mVideoTrackRenderer;
 	private Context mContext;
 	private SurfaceView mSurfaceView;
-	private Video mVideo;
 	private boolean mPlayerPrepared;
 
 	private int mWidth;
@@ -63,13 +59,7 @@ public class VideoExoPlayerImpl implements VideoPlayer, ExoPlayer.Listener, Medi
 	}
 
 	@Override
-	public void initialize(final Video video) {
-		mVideo = video;
-		initializeWithFlatFile();
-	}
-
-	private void initializeWithFlatFile() {
-		VideoFlatFile flatFile = mVideo.getMostSuitableFlatFile(VideoService.VALID_VIDEO_MIMETYPES, VideoService.TARGET_BIT_RATE);
+	public void initialize(final String videoUri) {
 
 		if (mExoPlayer != null) {
 			mExoPlayer.release();
@@ -80,7 +70,7 @@ public class VideoExoPlayerImpl implements VideoPlayer, ExoPlayer.Listener, Medi
 		mExoPlayer = ExoPlayer.Factory.newInstance(RENDERER_COUNT, 1000, 5000);
 		mExoPlayer.addListener(this);
 
-		DefaultSampleSource videoSource = new DefaultSampleSource(new FrameworkSampleExtractor(mContext, Uri.parse(flatFile.getUrl()), null), 2);
+		DefaultSampleSource videoSource = new DefaultSampleSource(new FrameworkSampleExtractor(mContext, Uri.parse(videoUri), null), 2);
 		mVideoTrackRenderer = new MediaCodecVideoTrackRenderer(videoSource, null, true,
 				MediaCodec.VIDEO_SCALING_MODE_SCALE_TO_FIT, 0, null, mBackgroundHandler, this, 50);
 		mAudioTrackRenderer = new MediaCodecAudioTrackRenderer(videoSource, mBackgroundHandler, this);
@@ -93,7 +83,7 @@ public class VideoExoPlayerImpl implements VideoPlayer, ExoPlayer.Listener, Medi
 	}
 
 	@Override
-	public void setVideoSize() {
+	public void resetSurfaceAspectRatio() {
 
 		final VideoSurfaceView view = (VideoSurfaceView) mSurfaceView;
 		mMainHandler.post(new Runnable() {
@@ -175,7 +165,7 @@ public class VideoExoPlayerImpl implements VideoPlayer, ExoPlayer.Listener, Medi
 		mHeight = height;
 		mPixelWidthHeightRatio = pixelWidthHeightRatio;
 
-		setVideoSize();
+		resetSurfaceAspectRatio();
 	}
 
 
@@ -212,9 +202,10 @@ public class VideoExoPlayerImpl implements VideoPlayer, ExoPlayer.Listener, Medi
 
 	@Override
 	public void tearDown() {
-		mExoPlayer.setPlayWhenReady(false);
-		mExoPlayer.release();
-		mExoPlayer = null;
+		if (mExoPlayer != null) {
+			mExoPlayer.release();
+			mExoPlayer = null;
+		}
 	}
 
 	@Override

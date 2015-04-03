@@ -13,14 +13,13 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
-import android.widget.ProgressBar;
 import android.widget.SeekBar;
 import android.widget.TextView;
 
-import java.lang.ref.WeakReference;
+import com.doyley.backgroundvideo.R;
+
 import java.util.Formatter;
 import java.util.Locale;
-import com.doyley.backgroundvideo.R;
 
 /**
  * This is an adaptation of the android MediaController class - it is not customizable so we had to
@@ -33,7 +32,7 @@ public class MediaController extends FrameLayout {
 	private final Context mContext;
 	private MediaPlayerControl mPlayer;
 	private ViewGroup mAnchor;
-	private ProgressBar mProgress;
+	private SeekBar mProgress;
 	private TextView mEndTime;
 	private TextView mCurrentTime;
 	private boolean mControlsVisible;
@@ -41,15 +40,105 @@ public class MediaController extends FrameLayout {
 	private static final int HIDE_CONTROLS = 1;
 	private static final int SHOW_PROGRESS = 2;
 	private static final int SHUTDOWN = 3;
-	@SuppressWarnings("PMD.AvoidStringBufferField") // it's cleared in between usages
-			StringBuilder mFormatBuilder;
-	Formatter mFormatter;
+	private StringBuilder mFormatBuilder;
+	private Formatter mFormatter;
 	private CheckableImageButton mPlayPauseButton;
 	private ImageButton mNextButton;
 	private ImageButton mPrevButton;
-	private final Handler mHandler = new MessageHandler(this);
 	private View mVideoController;
 	private TextView mTitleView;
+	private boolean mDragging;
+
+	private final Handler mHandler = new Handler() {
+		@Override
+		public void handleMessage(Message msg) {
+
+			long pos;
+			switch (msg.what) {
+				case HIDE_CONTROLS:
+					if (mPlayer.isPlaying()) {
+						hide();
+					}
+					break;
+				case SHOW_PROGRESS:
+					pos = updateProgress();
+					if (!mDragging) {
+						msg = obtainMessage(SHOW_PROGRESS);
+						sendMessageDelayed(msg, PROGRESS_BAR_MAX - (pos % PROGRESS_BAR_MAX));
+					}
+					break;
+				case SHUTDOWN:
+					mPlayer = null;
+					break;
+			}
+		}
+	};
+
+	private SeekBar.OnSeekBarChangeListener mSeekListener = new SeekBar.OnSeekBarChangeListener() {
+		public void onStartTrackingTouch(SeekBar bar) {
+			show(3600000);
+
+			mDragging = true;
+
+			// By removing these pending progress messages we make sure
+			// that a) we won't update the progress while the user adjusts
+			// the seekbar and b) once the user is done dragging the thumb
+			// we will post one of these messages to the queue again and
+			// this ensures that there will be exactly one message queued up.
+			mHandler.removeMessages(SHOW_PROGRESS);
+		}
+
+		public void onProgressChanged(SeekBar bar, int progress, boolean fromuser) {
+			if (!fromuser) {
+				// We're not interested in programmatically generated changes to
+				// the progress bar's position.
+				return;
+			}
+
+			long duration = mPlayer.getDuration();
+			long newposition = (duration * progress) / 1000L;
+			mPlayer.seekTo( (int) newposition);
+			if (mCurrentTime != null)
+				mCurrentTime.setText(stringForTime( (int) newposition));
+		}
+
+		public void onStopTrackingTouch(SeekBar bar) {
+			mDragging = false;
+			updateProgress();
+			updatePausePlay();
+			show(DEFAULT_TIMEOUT);
+
+			// Ensure that progress is properly updated in the future,
+			// the call to show() does not guarantee this because it is a
+			// no-op if we are already showing.
+			mHandler.sendEmptyMessage(SHOW_PROGRESS);
+		}
+	};
+
+	private View.OnClickListener mPauseListener = new View.OnClickListener() {
+		public void onClick(View v) {
+			doPauseResume();
+			show(DEFAULT_TIMEOUT);
+		}
+	};
+
+	private View.OnClickListener mNextListener = new View.OnClickListener() {
+		public void onClick(View v) {
+			if (mPlayer != null) {
+				mPlayer.next();
+			}
+			show(DEFAULT_TIMEOUT);
+		}
+	};
+
+	private View.OnClickListener mPrevListener = new View.OnClickListener() {
+		public void onClick(View v) {
+			if (mPlayer != null) {
+				mPlayer.prev();
+			}
+			show(DEFAULT_TIMEOUT);
+		}
+	};
 
 	public MediaController(Context context) {
 		super(context);
@@ -58,86 +147,6 @@ public class MediaController extends FrameLayout {
 		inflate(mContext, R.layout.media_controller, this);
 		setLayoutTransition(new LayoutTransition());
 		initControllerView();
-	}
-
-	public void setMediaPlayer(MediaPlayerControl player) {
-		mPlayer = player;
-		if (mPlayer != null) {
-			mEndTime.setText(stringForTime(mPlayer.getDuration()));
-			updatePausePlay();
-		}
-	}
-
-	/**
-	 * Set the view that acts as the anchor for the control view.
-	 * This can for example be a VideoView, or your Activity's main view.
-	 *
-	 * @param view The view to which to anchor the controller when it is visible.
-	 */
-	public void setAnchorView(FrameLayout view) {
-		mAnchor = view;
-
-		int margin = (int) mContext.getResources().getDimension(R.dimen.player_controls_margin);
-		MarginLayoutParams marginParams = new MarginLayoutParams(view.getLayoutParams());
-		marginParams.setMargins(0, 0, 0, margin);
-
-		FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(marginParams);
-		layoutParams.gravity = Gravity.BOTTOM;
-
-		view.addView(this, layoutParams);
-	}
-
-	private void initControllerView() {
-
-		this.setVisibility(View.GONE);
-
-		findViewById(R.id.controls).setVisibility(VISIBLE);
-
-		mVideoController = findViewById(R.id.player_controller);
-
-		mPlayPauseButton = (CheckableImageButton) findViewById(R.id.btn_play);
-		if (mPlayPauseButton != null) {
-			mPlayPauseButton.requestFocus();
-			mPlayPauseButton.setOnClickListener(mPauseListener);
-			Drawable pauseDrawable = mContext.getDrawable(R.drawable.ic_media_pause);
-			Drawable playDrawable = mContext.getDrawable(R.drawable.ic_media_play);
-
-			StateListDrawable drawable = new StateListDrawable();
-			drawable.addState(new int[]{-android.R.attr.state_checked}, pauseDrawable);
-			drawable.addState(new int[]{android.R.attr.state_checked}, playDrawable);
-
-			mPlayPauseButton.setImageDrawable(drawable);
-		}
-
-		mNextButton = (ImageButton) findViewById(R.id.btn_next);
-		mNextButton.setImageResource(R.drawable.ic_media_next);
-		mPrevButton = (ImageButton) findViewById(R.id.btn_prev);
-		mPrevButton.setImageResource(R.drawable.ic_media_previous);
-		setupPrevNextButtons();
-
-		mProgress = (SeekBar) findViewById(R.id.seekbar);
-		mProgress.setMax(PROGRESS_BAR_MAX);
-		mProgress.setEnabled(false);
-
-		mEndTime = (TextView) findViewById(R.id.time_length);
-		mCurrentTime = (TextView) findViewById(R.id.time_position);
-		mFormatBuilder = new StringBuilder();
-		mFormatter = new Formatter(mFormatBuilder, Locale.getDefault());
-
-		mTitleView = (TextView) findViewById(R.id.video_title);
-
-		setOnClickListener(new OnClickListener() {
-			@Override
-			public void onClick(View view) {
-				if (mControlsVisible) {
-					hide();
-				} else {
-					show(DEFAULT_TIMEOUT);
-				}
-			}
-		});
-
-		setupPrevNextButtons();
 	}
 
 	/**
@@ -184,22 +193,6 @@ public class MediaController extends FrameLayout {
 		}
 	}
 
-	public void shutdown() {
-		mHandler.removeMessages(HIDE_CONTROLS);
-		mHandler.removeMessages(SHOW_PROGRESS);
-		Message msg = Message.obtain();
-		msg.what = SHUTDOWN;
-		mHandler.sendMessageAtFrontOfQueue(msg);
-	}
-
-	public void setTitleText(String text) {
-		mTitleView.setText(text);
-	}
-
-	private void setSkipEnabled(boolean enable) {
-		mNextButton.setEnabled(enable);
-	}
-
 	/**
 	 * Remove the controller from the screen.
 	 */
@@ -213,6 +206,105 @@ public class MediaController extends FrameLayout {
 
 		// actual hide is down at the end of the animation
 		mControlsVisible = false;
+	}
+
+
+	public void setMediaPlayer(MediaPlayerControl player) {
+		mPlayer = player;
+		if (mPlayer != null) {
+			mEndTime.setText(stringForTime(mPlayer.getDuration()));
+			updatePausePlay();
+		}
+	}
+
+	/**
+	 * Set the view that acts as the anchor for the control view.
+	 * This can for example be a VideoView, or your Activity's main view.
+	 *
+	 * @param view The view to which to anchor the controller when it is visible.
+	 */
+	public void setAnchorView(FrameLayout view) {
+		mAnchor = view;
+
+		int margin = (int) mContext.getResources().getDimension(R.dimen.player_controls_margin);
+		MarginLayoutParams marginParams = new MarginLayoutParams(view.getLayoutParams());
+		marginParams.setMargins(0, 0, 0, margin);
+
+		FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(marginParams);
+		layoutParams.gravity = Gravity.BOTTOM;
+
+		view.addView(this, layoutParams);
+	}
+
+	public void shutdown() {
+		mHandler.removeMessages(HIDE_CONTROLS);
+		mHandler.removeMessages(SHOW_PROGRESS);
+		Message msg = Message.obtain();
+		msg.what = SHUTDOWN;
+		mHandler.sendMessageAtFrontOfQueue(msg);
+	}
+
+	public void setTitleText(String text) {
+		mTitleView.setText(text);
+	}
+
+	private void initControllerView() {
+
+		this.setVisibility(View.GONE);
+
+		findViewById(R.id.controls).setVisibility(VISIBLE);
+
+		mVideoController = findViewById(R.id.player_controller);
+
+		mPlayPauseButton = (CheckableImageButton) findViewById(R.id.btn_play);
+		if (mPlayPauseButton != null) {
+			mPlayPauseButton.requestFocus();
+			mPlayPauseButton.setOnClickListener(mPauseListener);
+			Drawable pauseDrawable = mContext.getDrawable(R.drawable.ic_media_pause);
+			Drawable playDrawable = mContext.getDrawable(R.drawable.ic_media_play);
+
+			StateListDrawable drawable = new StateListDrawable();
+			drawable.addState(new int[]{-android.R.attr.state_checked}, pauseDrawable);
+			drawable.addState(new int[]{android.R.attr.state_checked}, playDrawable);
+
+			mPlayPauseButton.setImageDrawable(drawable);
+		}
+
+		mNextButton = (ImageButton) findViewById(R.id.btn_next);
+		mNextButton.setImageResource(R.drawable.ic_media_next);
+		mPrevButton = (ImageButton) findViewById(R.id.btn_prev);
+		mPrevButton.setImageResource(R.drawable.ic_media_previous);
+		setupPrevNextButtons();
+
+		mProgress = (SeekBar) findViewById(R.id.seekbar);
+		mProgress.setMax(PROGRESS_BAR_MAX);
+		mProgress.setEnabled(true);
+		mProgress.setOnSeekBarChangeListener(mSeekListener);
+
+		mEndTime = (TextView) findViewById(R.id.time_length);
+		mCurrentTime = (TextView) findViewById(R.id.time_position);
+		mFormatBuilder = new StringBuilder();
+		mFormatter = new Formatter(mFormatBuilder, Locale.getDefault());
+
+		mTitleView = (TextView) findViewById(R.id.video_title);
+
+		setOnClickListener(new OnClickListener() {
+			@Override
+			public void onClick(View view) {
+				if (mControlsVisible) {
+					hide();
+				} else {
+					show(DEFAULT_TIMEOUT);
+				}
+			}
+		});
+
+		setupPrevNextButtons();
+	}
+
+
+	private void setSkipEnabled(boolean enable) {
+		mNextButton.setEnabled(enable);
 	}
 
 	private String stringForTime(long timeMs) {
@@ -313,32 +405,7 @@ public class MediaController extends FrameLayout {
 		return super.dispatchKeyEvent(event);
 	}
 
-	private View.OnClickListener mPauseListener = new View.OnClickListener() {
-		public void onClick(View v) {
-			doPauseResume();
-			show(DEFAULT_TIMEOUT);
-		}
-	};
-
-	private View.OnClickListener mNextListener = new View.OnClickListener() {
-		public void onClick(View v) {
-			if (mPlayer != null) {
-				mPlayer.next();
-			}
-			show(DEFAULT_TIMEOUT);
-		}
-	};
-
-	private View.OnClickListener mPrevListener = new View.OnClickListener() {
-		public void onClick(View v) {
-			if (mPlayer != null) {
-				mPlayer.prev();
-			}
-			show(DEFAULT_TIMEOUT);
-		}
-	};
-
-	public void updatePausePlay() {
+	private void updatePausePlay() {
 		if (mPlayPauseButton == null || mPlayer == null) {
 			return;
 		}
@@ -401,40 +468,6 @@ public class MediaController extends FrameLayout {
 
 		boolean isPrevEnabled();
 	}
-
-	private static class MessageHandler extends Handler {
-		private final WeakReference<MediaController> mView;
-
-		MessageHandler(MediaController view) {
-			mView = new WeakReference<MediaController>(view);
-		}
-
-		@Override
-		public void handleMessage(Message msg) {
-			MediaController view = mView.get();
-			if (view == null || view.mPlayer == null) {
-				return;
-			}
-
-			long pos;
-			switch (msg.what) {
-				case HIDE_CONTROLS:
-					if (view.mPlayer.isPlaying()) {
-						view.hide();
-					}
-					break;
-				case SHOW_PROGRESS:
-					pos = view.updateProgress();
-					msg = obtainMessage(SHOW_PROGRESS);
-					sendMessageDelayed(msg, PROGRESS_BAR_MAX - (pos % PROGRESS_BAR_MAX));
-					break;
-				case SHUTDOWN:
-					view.mPlayer = null;
-					break;
-			}
-		}
-	}
-
 
 }
 

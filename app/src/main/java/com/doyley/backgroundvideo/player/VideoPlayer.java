@@ -3,8 +3,6 @@ package com.doyley.backgroundvideo.player;
 import android.view.Display;
 import android.view.SurfaceView;
 
-import com.doyley.backgroundvideo.model.Video;
-
 public interface VideoPlayer {
 
 	public enum VideoPlaybackState {
@@ -18,7 +16,7 @@ public interface VideoPlayer {
 	public void onPlayerStateChanged(boolean playWhenReady, int playbackState);
 
 
-	public void initialize(Video video);
+	public void initialize(String videoUri);
 
 	public boolean isMediaPlayerActive();
 
@@ -46,6 +44,6 @@ public interface VideoPlayer {
 
 	public void stop();
 
-	public void setVideoSize();
+	public void resetSurfaceAspectRatio();
 
 }

@@ -12,16 +12,9 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
-import com.doyley.backgroundvideo.model.Video;
-import com.doyley.backgroundvideo.model.VideoFlatFile;
-import com.doyley.backgroundvideo.model.VideoPlayerMetadata;
+import com.doyley.backgroundvideo.model.VideoMetadata;
 import com.doyley.backgroundvideo.player.VideoPlayer;
 import com.doyley.backgroundvideo.service.VideoService;
-import com.doyley.backgroundvideo.service.VideoServiceListener;
-
-import java.util.ArrayList;
-import java.util.List;
-
 
 public class MainActivity extends ActionBarActivity {
 
@@ -60,63 +53,44 @@ public class MainActivity extends ActionBarActivity {
 		}
 	};
 
-	private VideoServiceListener mVideoServiceListener = new VideoServiceListener(12) {
-		@Override
-		protected void onTimeEvent(int eventMillis) {
-
-		}
+	private VideoService.VideoServiceListener mVideoServiceListener = new VideoService.VideoServiceListener() {
 
 		@Override
-		protected void onIntervalReached(final int interval) {
-			runOnUiThread(new Runnable() {
-				@Override
-				public void run() {
-					addToLog("Interval reached : " + interval);
-				}
-			});
-		}
-
-		@Override
-		protected void onCompletion() {
+		public void onCompletion() {
 			addToLog("Video Complete");
 			updateButtons();
 
 		}
 
 		@Override
-		protected void onPrepared() {
+		public void onPrepared() {
 			addToLog("Video Prepared");
 			mVideoPreparing = false;
 			updateButtons();
 		}
 
 		@Override
-		protected void onMediaPlayerInfo(VideoPlayer.VideoPlaybackState playbackState) {
+		public void onMediaPlayerInfo(VideoPlayer.VideoPlaybackState playbackState) {
 			addToLog("State : " + playbackState);
 			updateButtons();
 		}
 
 		@Override
-		protected void onPlaying(boolean isPlaying) {
+		public void onPlaying(boolean isPlaying) {
 			addToLog("Video Playing : " + isPlaying);
 			updateButtons();
 		}
 
 		@Override
-		protected void onError() {
+		public void onError() {
 			addToLog("Video Error");
 		}
 
 		@Override
-		protected void notifyVideoSizeChange() {
+		public void notifyVideoSizeChange() {
 
 		}
 	};
-
-	private void resumeActivity() {
-		Intent intent = VideoService.getIntent(this, VideoService.ACTION_DISPLAY_VIDEO);
-		startService(intent);
-	}
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -245,12 +219,14 @@ public class MainActivity extends ActionBarActivity {
 		Intent intent = VideoService.getIntent(this, VideoService.ACTION_DISCARD_VIDEO);
 		startService(intent);
 		addToLog("Video Stopped");
+		unbindService(mServiceConnection);
+		mVideoService = null;
 	}
 
 	private void startVideo(boolean withActivity, boolean startPlayback) {
 		addToLog("Video Starting : withActivity = " + withActivity);
 		if (!mVideoPreparing) {
-			if (mVideoService != null && !mVideoService.isPlayerPrepared()) {
+			if (mVideoService == null || !mVideoService.isPlayerPrepared()) {
 				addToLog(" - need to prepare first");
 				prepareVideo();
 			}
@@ -267,6 +243,7 @@ public class MainActivity extends ActionBarActivity {
 		if (mVideoService != null) {
 			loadVideo();
 		} else {
+			VideoService.bindToService(this, mServiceConnection);
 			mLoadRequested = true;
 		}
 	}
@@ -274,16 +251,12 @@ public class MainActivity extends ActionBarActivity {
 	private void loadVideo() {
 		Log.d(MainActivity.this.getClass().getSimpleName(), "loadVideo (VideoService)");
 		mVideoPreparing = true;
-		List<VideoFlatFile> videos = new ArrayList<>();
-		videos.add(new VideoFlatFile("http://www.quirksmode.org/html5/videos/big_buck_bunny.mp4", 1000, "video/mp4"));
 
-		Video video = new Video(null, videos);
-
-		VideoPlayerMetadata metadata = new VideoPlayerMetadata("Big Buck Bunny", "Blender Foundation", 12345,
+		VideoMetadata metadata = new VideoMetadata("http://www.quirksmode.org/html5/videos/big_buck_bunny.mp4", "Big Buck Bunny", "Blender Foundation", 12345,
 				"http://upload.wikimedia.org/wikipedia/commons/c/c5/Big_buck_bunny_poster_big.jpg",
 				"http://en.wikipedia.org/wiki/Big_Buck_Bunny", true, false, true);
 
-		mVideoService.loadVideo(metadata, video);
+		mVideoService.loadVideo(metadata);
 
 	}
 }
