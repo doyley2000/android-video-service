@@ -415,7 +415,7 @@ public class VideoService extends Service implements MediaController.MediaPlayer
 	}
 
 	/** called to send the video into the foreground or the background */
-	public void setBackgrounded(boolean backgrounded, VideoSurfaceView surfaceView, Display display) {
+	public void setBackgrounded(boolean backgrounded, VideoSurfaceView surfaceView) {
 		Log.d(this.getClass().getSimpleName(), "setBackgrounded : " + backgrounded);
 		if (isMediaPlayerActive()) {
 			mVideoPlayer.setBackgrounded(backgrounded);

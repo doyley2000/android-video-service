@@ -134,7 +134,7 @@ public class VideoPlayerActivity extends Activity {
 		public void surfaceDestroyed(SurfaceHolder holder) {
 			mSurfaceCreated = false;
 			if (mVideoService != null) {
-				mVideoService.setBackgrounded(true, null, getWindowManager().getDefaultDisplay());
+				mVideoService.setBackgrounded(true, null);
 			}
 		}
 	};
@@ -189,7 +189,7 @@ public class VideoPlayerActivity extends Activity {
 
 	private void trySetVideoSurfaceView() {
 		if (mVideoService != null && mSurfaceCreated) {
-			mVideoService.setBackgrounded(false, mVideoSurfaceView, getWindowManager().getDefaultDisplay());
+			mVideoService.setBackgrounded(false, mVideoSurfaceView);
 		}
 	}
 
