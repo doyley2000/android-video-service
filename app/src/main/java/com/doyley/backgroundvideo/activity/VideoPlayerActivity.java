@@ -14,6 +14,7 @@ import android.widget.FrameLayout;
 import com.doyley.backgroundvideo.R;
 import com.doyley.backgroundvideo.player.VideoPlayer;
 import com.doyley.backgroundvideo.service.VideoService;
+import com.doyley.backgroundvideo.service.VideoServiceListener;
 import com.doyley.backgroundvideo.view.MediaController;
 import com.google.android.exoplayer.VideoSurfaceView;
 
@@ -31,7 +32,7 @@ public class VideoPlayerActivity extends Activity {
 	private View mThrobberView;
 	private View mShutterView;
 
-	private VideoService.VideoServiceListener mVideoServiceListener = new VideoService.VideoServiceListener() {
+	private VideoServiceListener mVideoServiceListener = new VideoServiceListener() {
 
 		@Override
 		public void onPrepared() {

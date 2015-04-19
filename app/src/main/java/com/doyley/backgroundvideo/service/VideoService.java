@@ -22,8 +22,11 @@ import com.doyley.backgroundvideo.player.VideoPlayerListener;
 import com.doyley.backgroundvideo.view.MediaController;
 import com.google.android.exoplayer.VideoSurfaceView;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.logging.Logger;
 
 
 public class VideoService extends Service implements MediaController.MediaPlayerControl, VideoPlayerListener {
@@ -36,10 +39,13 @@ public class VideoService extends Service implements MediaController.MediaPlayer
 	public static final String ACTION_PLAYER_NEXT = VIDEO_SERVICE_URI + ".action.player.NEXT";
 	public static final String ACTION_PLAYER_PAUSE = VIDEO_SERVICE_URI + ".action.player.PAUSE";
 	public static final String ACTION_PLAYER_PLAY = VIDEO_SERVICE_URI + ".action.player.PLAY";
+	public static final String ACTION_LOAD_VIDEO = VIDEO_SERVICE_URI + ".action.player.LOAD_VIDEO";
 	public static final String ACTION_START_VIDEO = VIDEO_SERVICE_URI + ".action.player.START_VIDEO";
 	public static final String ACTION_DISCARD_VIDEO = VIDEO_SERVICE_URI + ".action.player.DISCARD_VIDEO";
+	public static final String ACTION_RESUME_VIEWING_VIDEO = VIDEO_SERVICE_URI + ".action.player.ACTION_RESUME_VIEWING_VIDEO";
+
 	public static final String EXTRA_WITH_ACTIVITY = "EXTRA_WITH_ACTIVITY";
-	public static final String EXTRA_START_PLAYBACK = "EXTRA_START_PLAYBACK";
+	public static final String EXTRA_VIDEO_METADATA = "EXTRA_VIDEO_METADATA";
 
 	private LocalBinder mLocalBinder = new LocalBinder();
 	private Handler mBackgroundHandler;
@@ -53,6 +59,7 @@ public class VideoService extends Service implements MediaController.MediaPlayer
 
 	private VideoPlayer mVideoPlayer;
 	private Surface mSurface;
+	private FileInputStream mInputStream;
 
 	// Local binder pattern...
 	public class LocalBinder extends Binder {
@@ -169,7 +176,25 @@ public class VideoService extends Service implements MediaController.MediaPlayer
 			switch (action) {
 				case ACTION_START_VIDEO:
 					mActivityRequested = intent.getBooleanExtra(EXTRA_WITH_ACTIVITY, false);
-					mStartRequested = intent.getBooleanExtra(EXTRA_START_PLAYBACK, false);
+					mStartRequested = true;
+					if (!isPlayerPrepared()) {
+						Log.d(this.getClass().getSimpleName(), "video is not prepared - call load first");
+						VideoMetadata metadata = intent.getParcelableExtra(EXTRA_VIDEO_METADATA);
+						mMetadata = metadata;
+						loadVideo();
+					}
+					beginVideo();
+					break;
+				case ACTION_LOAD_VIDEO:
+					mActivityRequested = false;
+					mStartRequested = false;
+					VideoMetadata metadata = intent.getParcelableExtra(EXTRA_VIDEO_METADATA);
+					mMetadata = metadata;
+					loadVideo();
+					break;
+				case ACTION_RESUME_VIEWING_VIDEO:
+					mActivityRequested = true;
+					mStartRequested = false;
 					beginVideo();
 					break;
 				case ACTION_DISCARD_VIDEO:
@@ -349,20 +374,30 @@ public class VideoService extends Service implements MediaController.MediaPlayer
 	/**
 	 * Loads the video track to the media player - does not start the video.
 	 *
-	 * @param metadata      Video metadata
 	 */
-	public void loadVideo(final VideoMetadata metadata) {
-		Log.d(this.getClass().getSimpleName(), "loadVideo - metadata = " + metadata);
+	private void loadVideo() {
+		Log.d(this.getClass().getSimpleName(), "loadVideo - metadata = " + mMetadata);
 
 		// This is important or else the service might get shut down when we unbind
 		startService(new Intent(this, VideoService.class));
-		mMetadata = metadata;
 
 		if (mVideoPlayer == null) {
 			mVideoPlayer = new VideoExoPlayerImpl(this, this, mHandler, mBackgroundHandler);
 		}
 
-		mVideoPlayer.initialize(mMetadata.getVideoUri());
+		if (mMetadata.getVideoUri().startsWith("http:")) {
+			mVideoPlayer.initialize(mMetadata.getVideoUri());
+		} else {
+			try {
+				File file = new File(mMetadata.getVideoUri());
+				mInputStream = new FileInputStream(file);
+				mVideoPlayer.initialize(mInputStream.getFD());
+			} catch (Exception ex) {
+				Log.e(this.getClass().getSimpleName(), "unable to load file : ", ex);
+				tearDown();
+			}
+
+		}
 
 	}
 
@@ -387,20 +422,6 @@ public class VideoService extends Service implements MediaController.MediaPlayer
 			mVideoPlayer.setBackgrounded(backgrounded);
 			setForegroundSurface(surfaceView, display);
 		}
-	}
-
-	/**
-	 * allows clients to listen to events related to the playback of the video within the service
-	 */
-	public interface VideoServiceListener {
-
-		public void onCompletion();
-		public void onPrepared();
-		public void onMediaPlayerInfo(VideoPlayer.VideoPlaybackState playbackState);
-		public void onPlaying(boolean isPlaying);
-		public void onError();
-		public void notifyVideoSizeChange();
-
 	}
 
 	public void registerListener(VideoServiceListener listener) {
@@ -482,6 +503,15 @@ public class VideoService extends Service implements MediaController.MediaPlayer
 	private void tearDown() {
 		Log.d(this.getClass().getSimpleName(), "tearDown");
 
+		if (mInputStream != null) {
+			try {
+				mInputStream.close();
+			} catch (Exception ex) {
+				// not much we can do - already tearing down
+				Log.e(this.getClass().getSimpleName(), "problem closing inputstream : ", ex);
+			}
+			mInputStream = null;
+		}
 		synchronized (mVideoServiceListenersMutex) {
 			mVideoServiceListeners.clear();
 		}
@@ -511,7 +541,5 @@ public class VideoService extends Service implements MediaController.MediaPlayer
 	private boolean isMediaPlayerActive() {
 		return mVideoPlayer != null && mVideoPlayer.isMediaPlayerActive();
 	}
-
-
 
 }

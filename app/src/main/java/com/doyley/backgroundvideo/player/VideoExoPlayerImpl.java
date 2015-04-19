@@ -4,6 +4,7 @@ import android.content.Context;
 import android.media.MediaCodec;
 import android.net.Uri;
 import android.os.Handler;
+import android.util.Log;
 import android.util.SparseArray;
 import android.view.Display;
 import android.view.Surface;
@@ -18,6 +19,12 @@ import com.google.android.exoplayer.VideoSurfaceView;
 import com.google.android.exoplayer.audio.AudioTrack;
 import com.google.android.exoplayer.source.DefaultSampleSource;
 import com.google.android.exoplayer.source.FrameworkSampleExtractor;
+
+import java.io.File;
+import java.io.FileDescriptor;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 
 public class VideoExoPlayerImpl implements VideoPlayer, ExoPlayer.Listener, MediaCodecVideoTrackRenderer.EventListener, MediaCodecAudioTrackRenderer.EventListener {
 
@@ -50,6 +57,7 @@ public class VideoExoPlayerImpl implements VideoPlayer, ExoPlayer.Listener, Medi
 	private int mWidth;
 	private int mHeight;
 	private float mPixelWidthHeightRatio;
+	private FileInputStream mInputStream;
 
 	public VideoExoPlayerImpl(Context context, VideoPlayerListener videoPlayerListener, Handler mainHandler, Handler backgroundHandler) {
 		mContext = context;
@@ -59,7 +67,19 @@ public class VideoExoPlayerImpl implements VideoPlayer, ExoPlayer.Listener, Medi
 	}
 
 	@Override
+	public void initialize(final FileDescriptor fileDescriptor) {
+		Log.d(this.getClass().getSimpleName(), "initialize : " + fileDescriptor);
+		initialize(new FrameworkSampleExtractor(fileDescriptor, 0, 0x7ffffffffffffffL));
+	}
+
+	@Override
 	public void initialize(final String videoUri) {
+		Log.d(this.getClass().getSimpleName(), "initialize : " + videoUri);
+		initialize(new FrameworkSampleExtractor(mContext, Uri.parse(videoUri), null));
+
+	}
+
+	private void initialize(FrameworkSampleExtractor frameworkSampleExtractor) {
 
 		if (mExoPlayer != null) {
 			mExoPlayer.release();
@@ -69,8 +89,7 @@ public class VideoExoPlayerImpl implements VideoPlayer, ExoPlayer.Listener, Medi
 		// ...initialize the MediaPlayer here...
 		mExoPlayer = ExoPlayer.Factory.newInstance(RENDERER_COUNT, 1000, 5000);
 		mExoPlayer.addListener(this);
-
-		DefaultSampleSource videoSource = new DefaultSampleSource(new FrameworkSampleExtractor(mContext, Uri.parse(videoUri), null), 2);
+		DefaultSampleSource videoSource = new DefaultSampleSource(frameworkSampleExtractor, 2);
 		mVideoTrackRenderer = new MediaCodecVideoTrackRenderer(videoSource, null, true,
 				MediaCodec.VIDEO_SCALING_MODE_SCALE_TO_FIT, 0, null, mBackgroundHandler, this, 50);
 		mAudioTrackRenderer = new MediaCodecAudioTrackRenderer(videoSource, mBackgroundHandler, this);

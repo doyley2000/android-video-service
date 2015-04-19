@@ -15,6 +15,7 @@ import android.widget.TextView;
 import com.doyley.backgroundvideo.model.VideoMetadata;
 import com.doyley.backgroundvideo.player.VideoPlayer;
 import com.doyley.backgroundvideo.service.VideoService;
+import com.doyley.backgroundvideo.service.VideoServiceListener;
 
 public class MainActivity extends ActionBarActivity {
 
@@ -26,10 +27,6 @@ public class MainActivity extends ActionBarActivity {
 	private TextView mStatus;
 	private VideoService mVideoService;
 
-	private boolean mLoadRequested;
-	private boolean mVideoPreparing;
-
-
 	private ServiceConnection mServiceConnection = new ServiceConnection() {
 		@Override
 		public void onServiceConnected(ComponentName name, IBinder service) {
@@ -37,11 +34,6 @@ public class MainActivity extends ActionBarActivity {
 			mVideoService = ((VideoService.LocalBinder) service).getVideoService();
 
 			mVideoService.registerListener(mVideoServiceListener);
-
-			if (mLoadRequested) {
-				loadVideo();
-				mLoadRequested = false;
-			}
 
 			updateButtons();
 
@@ -53,7 +45,7 @@ public class MainActivity extends ActionBarActivity {
 		}
 	};
 
-	private VideoService.VideoServiceListener mVideoServiceListener = new VideoService.VideoServiceListener() {
+	private VideoServiceListener mVideoServiceListener = new VideoServiceListener() {
 
 		@Override
 		public void onCompletion() {
@@ -65,7 +57,6 @@ public class MainActivity extends ActionBarActivity {
 		@Override
 		public void onPrepared() {
 			addToLog("Video Prepared");
-			mVideoPreparing = false;
 			updateButtons();
 		}
 
@@ -102,28 +93,28 @@ public class MainActivity extends ActionBarActivity {
 		mPrepareVideoButton.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View v) {
-				prepareVideo();
+				loadVideo();
 			}
 		});
 		mResumeViewingButton = (Button)findViewById(R.id.resume_viewing);
 		mResumeViewingButton.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View v) {
-				startVideo(true, false);
+				resumeVideo();
 			}
 		});
 		mStartVideoButton = (Button)findViewById(R.id.start_video);
 		mStartVideoButton.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View v) {
-				startVideo(false, true);
+				startVideo(false);
 			}
 		});
 		mStartVideoActivityButton = (Button)findViewById(R.id.start_video_activity);
 		mStartVideoActivityButton.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View v) {
-				startVideo(true, true);
+				startVideo(true);
 			}
 		});
 		mStopVideoButton = (Button)findViewById(R.id.stop_video);
@@ -223,40 +214,37 @@ public class MainActivity extends ActionBarActivity {
 		mVideoService = null;
 	}
 
-	private void startVideo(boolean withActivity, boolean startPlayback) {
+	private void startVideo(boolean withActivity) {
 		addToLog("Video Starting : withActivity = " + withActivity);
-		if (!mVideoPreparing) {
-			if (mVideoService == null || !mVideoService.isPlayerPrepared()) {
-				addToLog(" - need to prepare first");
-				prepareVideo();
-			}
-		}
+		VideoMetadata metadata = getMetadata();
+
 		Intent videoServiceIntent = VideoService.getIntent(this, VideoService.ACTION_START_VIDEO);
+		videoServiceIntent.putExtra(VideoService.EXTRA_VIDEO_METADATA, metadata);
 		videoServiceIntent.putExtra(VideoService.EXTRA_WITH_ACTIVITY, withActivity);
-		videoServiceIntent.putExtra(VideoService.EXTRA_START_PLAYBACK, startPlayback);
 		startService(videoServiceIntent);
 	}
 
-	private void prepareVideo() {
-		addToLog("Video Preparing");
+	private void resumeVideo() {
+		addToLog("Video REsuming");
 
-		if (mVideoService != null) {
-			loadVideo();
-		} else {
-			VideoService.bindToService(this, mServiceConnection);
-			mLoadRequested = true;
-		}
+		Intent videoServiceIntent = VideoService.getIntent(this, VideoService.ACTION_RESUME_VIEWING_VIDEO);
+		startService(videoServiceIntent);
 	}
 
 	private void loadVideo() {
 		Log.d(MainActivity.this.getClass().getSimpleName(), "loadVideo (VideoService)");
-		mVideoPreparing = true;
 
-		VideoMetadata metadata = new VideoMetadata("http://www.quirksmode.org/html5/videos/big_buck_bunny.mp4", "Big Buck Bunny", "Blender Foundation", 12345,
+		VideoMetadata metadata = getMetadata();
+
+		Intent videoServiceIntent = VideoService.getIntent(this, VideoService.ACTION_LOAD_VIDEO);
+		videoServiceIntent.putExtra(VideoService.EXTRA_VIDEO_METADATA, metadata);
+		startService(videoServiceIntent);
+
+	}
+
+	private VideoMetadata getMetadata() {
+		return new VideoMetadata("/sdcard/youngblood.mp4", "Big Buck Bunny", "Blender Foundation", 12345,
 				"http://upload.wikimedia.org/wikipedia/commons/c/c5/Big_buck_bunny_poster_big.jpg",
 				"http://en.wikipedia.org/wiki/Big_Buck_Bunny", true, false, true);
-
-		mVideoService.loadVideo(metadata);
-
 	}
 }

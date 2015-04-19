@@ -3,6 +3,8 @@ package com.doyley.backgroundvideo.player;
 import android.view.Display;
 import android.view.SurfaceView;
 
+import java.io.FileDescriptor;
+
 public interface VideoPlayer {
 
 	public enum VideoPlaybackState {
@@ -15,6 +17,8 @@ public interface VideoPlayer {
 
 	public void onPlayerStateChanged(boolean playWhenReady, int playbackState);
 
+
+	void initialize(FileDescriptor fileDescriptor);
 
 	public void initialize(String videoUri);
 
