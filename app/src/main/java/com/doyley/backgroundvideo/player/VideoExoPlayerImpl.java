@@ -209,7 +209,7 @@ public class VideoExoPlayerImpl implements VideoPlayer, ExoPlayer.Listener, Medi
 	}
 
 	@Override
-	public void attachSurface(SurfaceView surfaceView, Display display) {
+	public void attachSurface(SurfaceView surfaceView) {
 		mSurfaceView = surfaceView;
 		Surface surface = surfaceView != null ? surfaceView.getHolder().getSurface() : null;
 		if (surface != null) {

@@ -234,7 +234,7 @@ public class VideoService extends Service implements MediaController.MediaPlayer
 		if (mSurface != null) {
 			mSurface = null;
 			if (isPlayerPrepared()) {
-				setForegroundSurface(null, null);
+				setForegroundSurface(null);
 			}
 		}
 		return false;
@@ -420,7 +420,7 @@ public class VideoService extends Service implements MediaController.MediaPlayer
 		Log.d(this.getClass().getSimpleName(), "setBackgrounded : " + backgrounded);
 		if (isMediaPlayerActive()) {
 			mVideoPlayer.setBackgrounded(backgrounded);
-			setForegroundSurface(surfaceView, display);
+			setForegroundSurface(surfaceView);
 		}
 	}
 
@@ -490,13 +490,13 @@ public class VideoService extends Service implements MediaController.MediaPlayer
 	/**
 	 * Tell existing MediaPlayer which Surface to use
 	 */
-	private void setForegroundSurface(final VideoSurfaceView surfaceView, final Display display) {
+	private void setForegroundSurface(final VideoSurfaceView surfaceView) {
 		Log.d(this.getClass().getSimpleName(), "setForegroundSurface : " + surfaceView);
 
 		mSurface = surfaceView != null ? surfaceView.getHolder().getSurface() : null;
 
 		if (isMediaPlayerActive()) {
-			mVideoPlayer.attachSurface(surfaceView, display);
+			mVideoPlayer.attachSurface(surfaceView);
 		}
 	}
 

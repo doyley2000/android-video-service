@@ -26,7 +26,7 @@ public interface VideoPlayer {
 
 	public void setBackgrounded(boolean background);
 
-	public void attachSurface(SurfaceView view, Display display);
+	public void attachSurface(SurfaceView surfaceView);
 
 	public void tearDown();
 
