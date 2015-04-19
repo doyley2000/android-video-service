@@ -78,7 +78,7 @@ public class MainActivity extends ActionBarActivity {
 		}
 
 		@Override
-		public void notifyVideoSizeChange() {
+		public void notifyAspectRatioChange() {
 
 		}
 	};

@@ -82,7 +82,7 @@ public class VideoPlayerActivity extends Activity {
 		}
 
 		@Override
-		public void notifyVideoSizeChange() {
+		public void notifyAspectRatioChange() {
 			if (mShutterView != null) {
 				runOnUiThread(new Runnable() {
 					@Override

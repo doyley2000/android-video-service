@@ -6,5 +6,5 @@ public interface VideoPlayerListener {
 	public void onMediaPlaybackCompleted();
 	public void onMediaError(Exception exception);
 	public void onMediaDrawnToSurface();
-	public void onVideoSizeChanged();
+	public void onAspectRatioChanged();
 }

@@ -6,7 +6,6 @@ import android.net.Uri;
 import android.os.Handler;
 import android.util.Log;
 import android.util.SparseArray;
-import android.view.Display;
 import android.view.Surface;
 import android.view.SurfaceView;
 
@@ -20,11 +19,8 @@ import com.google.android.exoplayer.audio.AudioTrack;
 import com.google.android.exoplayer.source.DefaultSampleSource;
 import com.google.android.exoplayer.source.FrameworkSampleExtractor;
 
-import java.io.File;
 import java.io.FileDescriptor;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
 
 public class VideoExoPlayerImpl implements VideoPlayer, ExoPlayer.Listener, MediaCodecVideoTrackRenderer.EventListener, MediaCodecAudioTrackRenderer.EventListener {
 
@@ -110,7 +106,7 @@ public class VideoExoPlayerImpl implements VideoPlayer, ExoPlayer.Listener, Medi
 			public void run() {
 				view.setVideoWidthHeightRatio(
 						mWidth == 0 ? 1 : (mPixelWidthHeightRatio * mWidth) / mHeight);
-				mVideoPlayerListener.onVideoSizeChanged();
+				mVideoPlayerListener.onAspectRatioChanged();
 			}
 		});
 

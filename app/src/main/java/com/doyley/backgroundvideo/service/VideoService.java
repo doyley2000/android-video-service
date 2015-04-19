@@ -26,7 +26,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.logging.Logger;
 
 
 public class VideoService extends Service implements MediaController.MediaPlayerControl, VideoPlayerListener {
@@ -131,12 +130,12 @@ public class VideoService extends Service implements MediaController.MediaPlayer
 		Log.d(this.getClass().getSimpleName(), "onMediaDrawnToSurface");
 	}
 
-	public void onVideoSizeChanged() {
+	public void onAspectRatioChanged() {
 		Log.d(this.getClass().getSimpleName(), "onVideoSizeChanged");
 
 		synchronized (mVideoServiceListenersMutex) {
 			for (VideoServiceListener listener : mVideoServiceListeners) {
-				listener.notifyVideoSizeChange();
+				listener.notifyAspectRatioChange();
 			}
 		}
 

@@ -14,5 +14,5 @@ public interface VideoServiceListener {
 
 	void onError();
 
-	void notifyVideoSizeChange();
+	void notifyAspectRatioChange();
 }
