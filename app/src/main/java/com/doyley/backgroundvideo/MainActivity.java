@@ -216,6 +216,9 @@ public class MainActivity extends ActionBarActivity {
 
 	private void startVideo(boolean withActivity) {
 		addToLog("Video Starting : withActivity = " + withActivity);
+		if (mVideoService == null) {
+			VideoService.bindToService(this, mServiceConnection);
+		}
 		VideoMetadata metadata = getMetadata();
 
 		Intent videoServiceIntent = VideoService.getIntent(this, VideoService.ACTION_START_VIDEO);
